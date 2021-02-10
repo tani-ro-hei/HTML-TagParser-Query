@@ -1,0 +1,6 @@
+Revision history for Perl extension HTML::TagParser::Query.
+
+0.01  Sat Feb  6 17:02:04 2021
+	- original version; created by h2xs 1.23 with options
+		-b 5.22.0 -XAn HTML::TagParser::Query
+

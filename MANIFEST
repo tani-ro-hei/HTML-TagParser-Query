@@ -1,0 +1,6 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/HTML-TagParser-Query.t
+lib/HTML/TagParser/Query.pm
