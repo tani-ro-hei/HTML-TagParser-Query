@@ -21,11 +21,23 @@ use constant
 };
 
 
+sub new {
+
+    my $pkg = shift;
+
+    # インスタンスメソッドとしても呼べるように new を変更
+    $pkg = ref($pkg) || $pkg;
+
+    return $pkg->SUPER::new( @_ );
+}
+
+
 sub fetch {
 
     my $self = shift;
     my $url  = shift;
 
+    # LWP::Simple を利用するように変更
     my $content = LWP::Simple::get( $url );
     Carp::croak "&LWP::Simple::get failed: $url"  unless defined $content;
 
@@ -44,17 +56,26 @@ sub parse {
 
         my $charset = HTML::TagParser::Util::find_meta_charset( $txtref );
         $self->{charset} = $charset;
+
+        # charset の不明なものは UTF-8 で、とにかくデコードはする
         unless ($charset && Encode::find_encoding($charset)) {
             $charset = 'utf-8';
         }
         $$txtref = Encode::decode( $charset => $$txtref );
     }
 
+    # 文字化け対策 (BOM 削除)
+    $$txtref =~ s/\A(?:\xEF\xBB\xBF|\x{FEFF})//;
+    # 文字化け対策 (チルダ問題)
+    $$txtref =~ tr/\x{301C}/\x{FF5E}/;
+
     my $flat = HTML::TagParser::Util::html_to_flat( $txtref );
     Carp::croak "Null HTML document." unless scalar @$flat;
 
     $self->{flat} = $flat;
-    scalar @$flat;
+
+    # $self を返すように変更
+    return $self;
 }
 
 
@@ -129,6 +150,34 @@ sub getElementsByAttribute {
 }
 
 
+# aliases
+{
+    no strict 'refs';
+
+    *{ __PACKAGE__.'::ge' } = \&{ __PACKAGE__.'::getElements' };
+    *{ __PACKAGE__.'::gt' } = \&{ __PACKAGE__.'::getElementsByTagName' };
+    *{ __PACKAGE__.'::ga' } = \&{ __PACKAGE__.'::getElementsByAttribute' };
+    *{ __PACKAGE__.'::gc' } = \&{ __PACKAGE__.'::getElementsByClassName' };
+    *{ __PACKAGE__.'::gn' } = \&{ __PACKAGE__.'::getElementsByName' };
+    *{ __PACKAGE__.'::gi' } = \&{ __PACKAGE__.'::getElementsById' };
+}
+
+
+# new methods:
+sub head {
+    my $self = shift;
+    ( $self->getElementsByTagName('head') )[0];
+}
+sub title {
+    my $self = shift;
+    ( $self->getElementsByTagName('title') )[0];
+}
+sub body {
+    my $self = shift;
+    ( $self->getElementsByTagName('body') )[0];
+}
+
+
 # --------------------------------------------------
 package HTML::TagParser::Query::Element;
 
@@ -181,6 +230,19 @@ sub getElementById {
     my $html = shift->subTree;
     return $html->getElementById(@_) if wantarray;
     scalar $html->getElementById(@_);
+}
+
+
+# aliases
+{
+    no strict 'refs';
+
+    *{ __PACKAGE__.'::ge' } = \&{ __PACKAGE__.'::getElements' };
+    *{ __PACKAGE__.'::gt' } = \&{ __PACKAGE__.'::getElementsByTagName' };
+    *{ __PACKAGE__.'::ga' } = \&{ __PACKAGE__.'::getElementsByAttribute' };
+    *{ __PACKAGE__.'::gc' } = \&{ __PACKAGE__.'::getElementsByClassName' };
+    *{ __PACKAGE__.'::gn' } = \&{ __PACKAGE__.'::getElementsByName' };
+    *{ __PACKAGE__.'::gi' } = \&{ __PACKAGE__.'::getElementsById' };
 }
 
 
@@ -314,7 +376,7 @@ sub parentNode {
 
     my $parent = $first->[1] - 1;
     return undef if $parent < 0;
-    die "parent too short"
+    Carp::croak "parent too short"
         if HTML::TagParser::Util::find_closing($flat, $parent) <= $cur;
 
     $flat->[$cur][ParentTagIdx] = $parent;
@@ -384,7 +446,7 @@ sub html_to_flat {
 
             # コメントも保持する！
             $flat->[-1][PostContent] .= $comment
-                unless $comment =~ /<!DOCTYPE\s/i;
+                unless @$flat == 0;
 
             next;
         }
