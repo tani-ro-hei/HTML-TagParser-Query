@@ -150,31 +150,54 @@ sub getElementsByAttribute {
 }
 
 
-# aliases
-{
-    no strict 'refs';
-
-    *{ __PACKAGE__.'::ge' } = \&{ __PACKAGE__.'::getElements' };
-    *{ __PACKAGE__.'::gt' } = \&{ __PACKAGE__.'::getElementsByTagName' };
-    *{ __PACKAGE__.'::ga' } = \&{ __PACKAGE__.'::getElementsByAttribute' };
-    *{ __PACKAGE__.'::gc' } = \&{ __PACKAGE__.'::getElementsByClassName' };
-    *{ __PACKAGE__.'::gn' } = \&{ __PACKAGE__.'::getElementsByName' };
-    *{ __PACKAGE__.'::gi' } = \&{ __PACKAGE__.'::getElementsById' };
-}
+# aliases (現在のパッケージにないものは解決しないので、完全修飾しないとダメ！)
+sub ge { goto &getElements }
+sub gt { goto &getElementsByTagName }
+sub ga { goto &getElementsByAttribute }
+sub gc { goto &HTML::TagParser::getElementsByClassName }
+sub gn { goto &HTML::TagParser::getElementsByName }
+sub gi { goto &HTML::TagParser::getElementsById }
 
 
 # new methods:
-sub head {
-    my $self = shift;
-    ( $self->getElementsByTagName('head') )[0];
+
+# # 以下は HTML::TagParser::Query インスタンス専用
+sub head  {( shift->getElementsByTagName('head')  )[0] }
+sub title {( shift->getElementsByTagName('title') )[0] }
+sub body  {( shift->getElementsByTagName('body')  )[0] }
+sub frame {
+    my @elms = shift->getElementsByTagName('frame');
+    wantarray? @elms : $elms[0];
 }
-sub title {
-    my $self = shift;
-    ( $self->getElementsByTagName('title') )[0];
+
+# # 以下は HTML::TagParser::Query::Element インスタンスからも使える
+sub h1 {
+    my @elms = shift->getElementsByTagName('h1');
+    wantarray? @elms : $elms[0];
 }
-sub body {
-    my $self = shift;
-    ( $self->getElementsByTagName('body') )[0];
+sub h2 {
+    my @elms = shift->getElementsByTagName('h2');
+    wantarray? @elms : $elms[0];
+}
+sub h3 {
+    my @elms = shift->getElementsByTagName('h3');
+    wantarray? @elms : $elms[0];
+}
+sub a {
+    my @elms = shift->getElementsByTagName('a');
+    wantarray? @elms : $elms[0];
+}
+sub img {
+    my @elms = shift->getElementsByTagName('img');
+    wantarray? @elms : $elms[0];
+}
+sub form {
+    my @elms = shift->getElementsByTagName('form');
+    wantarray? @elms : $elms[0];
+}
+sub iframe {
+    my @elms = shift->getElementsByTagName('iframe');
+    wantarray? @elms : $elms[0];
 }
 
 
@@ -198,6 +221,21 @@ use constant
       #
     InrHTMLCache => 11,
 };
+
+
+sub new {
+
+    my $pkg = shift;
+
+    my $self = [];
+    if (my $_pkg = ref $pkg) {
+        $self = [ @$pkg ];
+        $pkg = $_pkg;
+    }
+    $self = [ @_ ]  if @_;
+
+    bless $self => $pkg;
+}
 
 
 # new methods:
@@ -228,22 +266,85 @@ sub getElementsByName {
 }
 sub getElementById {
     my $html = shift->subTree;
-    return $html->getElementById(@_) if wantarray;
-    scalar $html->getElementById(@_);
+    return $html->getElementById(@_);
 }
 
 
-# aliases
-{
-    no strict 'refs';
+# aliases:
+sub ge { goto &getElements }
+sub gt { goto &getElementsByTagName }
+sub ga { goto &getElementsByAttribute }
+sub gc { goto &getElementsByClassName }
+sub gn { goto &getElementsByName }
+sub gi { goto &getElementsById }
 
-    *{ __PACKAGE__.'::ge' } = \&{ __PACKAGE__.'::getElements' };
-    *{ __PACKAGE__.'::gt' } = \&{ __PACKAGE__.'::getElementsByTagName' };
-    *{ __PACKAGE__.'::ga' } = \&{ __PACKAGE__.'::getElementsByAttribute' };
-    *{ __PACKAGE__.'::gc' } = \&{ __PACKAGE__.'::getElementsByClassName' };
-    *{ __PACKAGE__.'::gn' } = \&{ __PACKAGE__.'::getElementsByName' };
-    *{ __PACKAGE__.'::gi' } = \&{ __PACKAGE__.'::getElementsById' };
+
+# new methods:
+sub h1 {
+    my @elms = shift->subTree->h1;
+    wantarray? @elms : $elms[0];
 }
+sub h2 {
+    my @elms = shift->subTree->h2;
+    wantarray? @elms : $elms[0];
+}
+sub h3 {
+    my @elms = shift->subTree->h3;
+    wantarray? @elms : $elms[0];
+}
+sub a {
+    my @elms = shift->subTree->a;
+    wantarray? @elms : $elms[0];
+}
+sub img {
+    my @elms = shift->subTree->img;
+    wantarray? @elms : $elms[0];
+}
+sub form {
+    my @elms = shift->subTree->form;
+    wantarray? @elms : $elms[0];
+}
+sub iframe {
+    my @elms = shift->subTree->iframe;
+    wantarray? @elms : $elms[0];
+}
+
+
+sub id {
+
+    my $id = shift->getAttribute('id');
+
+    return $id unless wantarray;
+    return split(/\s+/, $id);
+}
+
+
+# new meth.
+sub class {
+
+    my $class = shift->getAttribute('class');
+
+    return $class unless wantarray;
+    return split(/\s+/, $class);
+}
+
+
+# new meth.
+sub name {
+
+    my $name = shift->getAttribute('name');
+
+    return $name unless wantarray;
+    return split(/\s+/, $name);
+}
+
+
+# new methods:
+sub href    { shift->getAttribute('href')    }
+sub src     { shift->getAttribute('src')     }
+sub alt     { shift->getAttribute('alt')     }
+sub title   { shift->getAttribute('title')   }
+sub content { shift->getAttribute('content') }
 
 
 sub innerText {
@@ -292,7 +393,7 @@ sub subTree {
     my ( $flat, $cur ) = @$self;
     my $elem = $flat->[$cur];
     return if $elem->[IsClose];
-    my $closing = HTML::TagParser::Util::find_closing($flat, $cur);
+    my $closing = HTML::TagParser::Util::find_closing( $flat, $cur );
     my $list    = [];
     while (++$cur < $closing)
       {
@@ -383,6 +484,15 @@ sub parentNode {
 
     # chg.
     return __PACKAGE__->new( $flat, $parent )
+}
+
+
+sub attributes {
+
+    my $attr = shift->SUPER::attributes;
+
+    return $attr unless wantarray;
+    return sort keys $attr->%*;
 }
 
 
