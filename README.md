@@ -1,2 +1,2 @@
-# Perl-HTML-TagParser-Query
+# HTML-TagParser-Query
  (tbd.) Subclass of [HTML::TagParser](https://github.com/gitpan/HTML-TagParser).
